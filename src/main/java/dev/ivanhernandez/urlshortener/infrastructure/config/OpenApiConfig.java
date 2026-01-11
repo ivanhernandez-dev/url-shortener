@@ -21,7 +21,7 @@ public class OpenApiConfig {
                                 .name("Ivan Hernandez")
                                 .url("https://ivanhernandez.dev"))
                         .license(new License()
-                                .name("MIT License")
-                                .url("https://opensource.org/licenses/MIT")));
+                                .name("CC BY-NC 4.0")
+                                .url("https://creativecommons.org/licenses/by-nc/4.0/")));
     }
 }
