@@ -46,13 +46,7 @@ public class CreateShortUrlUseCaseImpl implements CreateShortUrlUseCase {
 
         Url savedUrl = urlRepository.save(url);
 
-        return new ShortUrlResponse(
-                baseUrl + "/r/" + savedUrl.getShortCode(),
-                savedUrl.getShortCode(),
-                savedUrl.getOriginalUrl(),
-                savedUrl.getCreatedAt(),
-                savedUrl.getExpiresAt()
-        );
+        return ShortUrlResponse.fromDomain(savedUrl, baseUrl);
     }
 
     private String resolveShortCode(String customAlias) {

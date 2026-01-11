@@ -1,5 +1,6 @@
 package dev.ivanhernandez.urlshortener.infrastructure.adapter.output.persistence;
 
+import dev.ivanhernandez.urlshortener.domain.model.Url;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -90,5 +91,29 @@ public class UrlJpaEntity {
 
     public void setLastAccessedAt(LocalDateTime lastAccessedAt) {
         this.lastAccessedAt = lastAccessedAt;
+    }
+
+    public static UrlJpaEntity fromDomain(Url url) {
+        UrlJpaEntity entity = new UrlJpaEntity();
+        entity.setId(url.getId());
+        entity.setOriginalUrl(url.getOriginalUrl());
+        entity.setShortCode(url.getShortCode());
+        entity.setCreatedAt(url.getCreatedAt());
+        entity.setExpiresAt(url.getExpiresAt());
+        entity.setAccessCount(url.getAccessCount());
+        entity.setLastAccessedAt(url.getLastAccessedAt());
+        return entity;
+    }
+
+    public Url toDomain() {
+        return new Url(
+                this.id,
+                this.originalUrl,
+                this.shortCode,
+                this.createdAt,
+                this.expiresAt,
+                this.accessCount,
+                this.lastAccessedAt
+        );
     }
 }

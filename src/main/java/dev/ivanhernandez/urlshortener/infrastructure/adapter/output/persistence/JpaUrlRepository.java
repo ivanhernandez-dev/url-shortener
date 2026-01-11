@@ -10,24 +10,22 @@ import java.util.Optional;
 public class JpaUrlRepository implements UrlRepository {
 
     private final SpringDataUrlRepository springDataUrlRepository;
-    private final UrlMapper urlMapper;
 
-    public JpaUrlRepository(SpringDataUrlRepository springDataUrlRepository, UrlMapper urlMapper) {
+    public JpaUrlRepository(SpringDataUrlRepository springDataUrlRepository) {
         this.springDataUrlRepository = springDataUrlRepository;
-        this.urlMapper = urlMapper;
     }
 
     @Override
     public Url save(Url url) {
-        UrlJpaEntity entity = urlMapper.toEntity(url);
+        UrlJpaEntity entity = UrlJpaEntity.fromDomain(url);
         UrlJpaEntity savedEntity = springDataUrlRepository.save(entity);
-        return urlMapper.toDomain(savedEntity);
+        return savedEntity.toDomain();
     }
 
     @Override
     public Optional<Url> findByShortCode(String shortCode) {
         return springDataUrlRepository.findByShortCode(shortCode)
-                .map(urlMapper::toDomain);
+                .map(UrlJpaEntity::toDomain);
     }
 
     @Override

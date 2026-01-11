@@ -23,12 +23,6 @@ public class GetUrlStatsUseCaseImpl implements GetUrlStatsUseCase {
         Url url = urlRepository.findByShortCode(shortCode)
                 .orElseThrow(() -> new UrlNotFoundException(shortCode));
 
-        return new UrlStatsResponse(
-                url.getShortCode(),
-                url.getOriginalUrl(),
-                url.getAccessCount(),
-                url.getCreatedAt(),
-                url.getLastAccessedAt()
-        );
+        return UrlStatsResponse.fromDomain(url);
     }
 }
