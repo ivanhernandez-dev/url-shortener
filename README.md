@@ -6,7 +6,7 @@ A URL shortening service built with Java and Spring Boot, demonstrating clean ar
 
 | Resource | URL |
 |----------|-----|
-| **API Base URL** | https://url.ivanhernandez.dev |
+| **API Base URL** | `https://url.ivanhernandez.dev` |
 | **Swagger UI (API Docs)** | https://url.ivanhernandez.dev/swagger-ui/index.html |
 | **OpenAPI Spec** | https://url.ivanhernandez.dev/v3/api-docs |
 
