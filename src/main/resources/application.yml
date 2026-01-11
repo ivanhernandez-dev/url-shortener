@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: url-shortener
+  profiles:
+    active: dev
+
+server:
+  port: 8081
+
+app:
+  base-url: ${APP_BASE_URL:http://localhost:8081}
+  short-code:
+    length: 7
