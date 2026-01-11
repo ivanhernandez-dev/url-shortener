@@ -159,11 +159,11 @@ public record ShortUrlResponse(
 ) {
     public static ShortUrlResponse fromDomain(Url url, String baseUrl) {
         return new ShortUrlResponse(
-                baseUrl + "/r/" + url.shortCode(),
-                url.shortCode(),
-                url.originalUrl(),
-                url.createdAt(),
-                url.expiresAt()
+                baseUrl + "/r/" + url.getShortCode(),
+                url.getShortCode(),
+                url.getOriginalUrl(),
+                url.getCreatedAt(),
+                url.getExpiresAt()
         );
     }
 }
@@ -184,10 +184,13 @@ public class UrlJpaEntity {
 
     public static UrlJpaEntity fromDomain(Url url) {
         UrlJpaEntity entity = new UrlJpaEntity();
-        entity.id = url.id();
-        entity.originalUrl = url.originalUrl();
-        entity.shortCode = url.shortCode();
-        // ... map other fields
+        entity.setId(url.getId());
+        entity.setOriginalUrl(url.getOriginalUrl());
+        entity.setShortCode(url.getShortCode());
+        entity.setCreatedAt(url.getCreatedAt());
+        entity.setExpiresAt(url.getExpiresAt());
+        entity.setAccessCount(url.getAccessCount());
+        entity.setLastAccessedAt(url.getLastAccessedAt());
         return entity;
     }
 
@@ -217,7 +220,7 @@ Domain-specific exceptions provide clear error semantics and enable proper HTTP 
 // Thrown when a short code doesn't exist
 public class UrlNotFoundException extends RuntimeException {
     public UrlNotFoundException(String shortCode) {
-        super("URL not found with code: " + shortCode);
+        super("URL not found with short code: " + shortCode);
     }
 }
 
@@ -239,20 +242,29 @@ public class InvalidUrlException extends RuntimeException {
 ### Usage in Use Cases
 
 ```java
-@Service
+@Component
+@Transactional
 public class GetOriginalUrlUseCaseImpl implements GetOriginalUrlUseCase {
-    
+
+    private final UrlRepository urlRepository;
+
+    public GetOriginalUrlUseCaseImpl(UrlRepository urlRepository) {
+        this.urlRepository = urlRepository;
+    }
+
     @Override
     public String getOriginalUrl(String shortCode) {
-        Url url = repository.findByShortCode(shortCode)
+        Url url = urlRepository.findByShortCode(shortCode)
                 .orElseThrow(() -> new UrlNotFoundException(shortCode));
-        
+
         if (url.isExpired()) {
             throw new ExpiredUrlException(shortCode);
         }
-        
-        repository.incrementAccessCount(shortCode);
-        return url.originalUrl();
+
+        url.incrementAccessCount();
+        urlRepository.save(url);
+
+        return url.getOriginalUrl();
     }
 }
 ```
@@ -270,24 +282,41 @@ A centralized `@RestControllerAdvice` catches all exceptions and returns consist
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(UrlNotFoundException.class)
-    @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ErrorResponse handleUrlNotFound(UrlNotFoundException ex) {
-        return new ErrorResponse(404, ex.getMessage(), LocalDateTime.now());
+    public ResponseEntity<ErrorResponse> handleUrlNotFoundException(UrlNotFoundException ex) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                ex.getMessage(),
+                LocalDateTime.now()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
     @ExceptionHandler(ExpiredUrlException.class)
-    @ResponseStatus(HttpStatus.GONE)
-    public ErrorResponse handleExpiredUrl(ExpiredUrlException ex) {
-        return new ErrorResponse(410, ex.getMessage(), LocalDateTime.now());
+    public ResponseEntity<ErrorResponse> handleExpiredUrlException(ExpiredUrlException ex) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.GONE.value(),
+                ex.getMessage(),
+                LocalDateTime.now()
+        );
+        return ResponseEntity.status(HttpStatus.GONE).body(error);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ValidationErrorResponse handleValidation(MethodArgumentNotValidException ex) {
+    public ResponseEntity<ValidationErrorResponse> handleValidationExceptions(
+            MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getFieldErrors()
-            .forEach(error -> errors.put(error.getField(), error.getDefaultMessage()));
-        return new ValidationErrorResponse(400, "Validation failed", errors, LocalDateTime.now());
+        ex.getBindingResult().getAllErrors().forEach(error -> {
+            String fieldName = ((FieldError) error).getField();
+            String errorMessage = error.getDefaultMessage();
+            errors.put(fieldName, errorMessage);
+        });
+        ValidationErrorResponse response = new ValidationErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "Validation failed",
+                errors,
+                LocalDateTime.now()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 }
 ```
@@ -332,7 +361,6 @@ public record CreateUrlRequest(
         @URL(message = "Invalid URL format")
         String originalUrl,
 
-        @Pattern(regexp = "^[a-zA-Z0-9-_]*$", message = "Alias can only contain letters, numbers, hyphens and underscores")
         String customAlias,
 
         LocalDateTime expiresAt
@@ -343,9 +371,10 @@ public record CreateUrlRequest(
 
 ```java
 @PostMapping
-@ResponseStatus(HttpStatus.CREATED)
-public ShortUrlResponse createShortUrl(@Valid @RequestBody CreateUrlRequest request) {
-    return createShortUrlUseCase.createShortUrl(request);
+public ResponseEntity<ShortUrlResponse> createShortUrl(
+        @Valid @RequestBody CreateUrlRequest request) {
+    ShortUrlResponse response = createShortUrlUseCase.createShortUrl(request);
+    return ResponseEntity.status(HttpStatus.CREATED).body(response);
 }
 ```
 
@@ -356,8 +385,7 @@ public ShortUrlResponse createShortUrl(@Valid @RequestBody CreateUrlRequest requ
   "status": 400,
   "message": "Validation failed",
   "errors": {
-    "originalUrl": "Invalid URL format",
-    "customAlias": "Alias can only contain letters, numbers, hyphens and underscores"
+    "originalUrl": "Invalid URL format"
   },
   "timestamp": "2026-01-11T10:30:00"
 }
@@ -531,6 +559,15 @@ CREATE INDEX idx_short_code ON urls(short_code);
 CREATE INDEX idx_expires_at ON urls(expires_at);
 ```
 
+---
+
+## 🔮 Future Improvements
+
+| Area | Improvement | Description |
+|------|-------------|-------------|
+| **Testing** | Unit & Integration Tests | Add JUnit 5 + Mockito for use cases, Spring Boot Test for controllers |
+| **Security** | Rate Limiting | Prevent abuse with request throttling per IP |
+| **Security** | API Key Authentication | Protect endpoints with API keys for registered users |
 ---
 
 ## 📝 License
