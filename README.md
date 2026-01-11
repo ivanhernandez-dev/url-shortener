@@ -37,6 +37,7 @@ curl -X POST https://url.ivanhernandez.dev/api/v1/urls \
 | **Database Flexibility** | H2 for development, PostgreSQL for production |
 | **API Documentation** | OpenAPI/Swagger integration |
 | **Containerization** | Docker & Docker Compose for deployment |
+| **Testing** | Unit, integration, and end-to-end tests with JUnit 5, Mockito, and Spring Boot Test |
 
 ---
 
@@ -561,11 +562,95 @@ CREATE INDEX idx_expires_at ON urls(expires_at);
 
 ---
 
+## 🧪 Testing
+
+The project includes comprehensive tests following best practices:
+
+### Test Structure
+
+```
+src/test/java/dev/ivanhernandez/urlshortener/
+│
+├── domain/
+│   ├── model/
+│   │   ├── UrlTest.java                      # Unit tests
+│   │   └── UrlParameterizedTest.java         # Parameterized tests
+│   └── exception/
+│       └── DomainExceptionsTest.java         # Exception tests
+│
+├── application/
+│   ├── usecase/
+│   │   ├── CreateShortUrlUseCaseImplTest.java
+│   │   ├── CreateShortUrlUseCaseImplEdgeCasesTest.java  # Edge cases
+│   │   ├── GetOriginalUrlUseCaseImplTest.java
+│   │   ├── GetUrlStatsUseCaseImplTest.java
+│   │   └── DeleteUrlUseCaseImplTest.java
+│   └── dto/
+│       ├── request/
+│       │   └── CreateUrlRequestValidationTest.java  # Validation tests
+│       └── response/
+│           ├── ShortUrlResponseTest.java
+│           └── UrlStatsResponseTest.java
+│
+├── infrastructure/
+│   ├── adapter/input/rest/
+│   │   ├── UrlControllerTest.java
+│   │   ├── UrlControllerValidationTest.java  # Validation tests
+│   │   └── RedirectControllerTest.java
+│   ├── adapter/output/persistence/
+│   │   ├── UrlJpaEntityTest.java
+│   │   ├── JpaUrlRepositoryTest.java
+│   │   └── SpringDataUrlRepositoryTest.java  # @DataJpaTest
+│   └── exception/
+│       └── GlobalExceptionHandlerTest.java
+│
+└── UrlShortenerIntegrationTest.java          # @SpringBootTest
+```
+
+### Test Categories
+
+| Category | Description | Tools |
+|----------|-------------|-------|
+| **Unit Tests** | Isolated tests with mocked dependencies | JUnit 5, Mockito |
+| **Parameterized Tests** | Data-driven tests with multiple inputs | @ParameterizedTest, @ValueSource, @CsvSource |
+| **Validation Tests** | Bean Validation constraint testing | Jakarta Validation, Validator |
+| **Edge Case Tests** | Boundary conditions and special scenarios | JUnit 5 |
+| **Exception Tests** | Domain exception behavior verification | JUnit 5 |
+| **Controller Tests** | REST endpoint testing with MockMvc | Spring MockMvc |
+| **Repository Tests** | Database integration tests | @DataJpaTest, H2 |
+| **Integration Tests** | Full application context tests | @SpringBootTest |
+
+### Test Naming Convention
+
+```
+methodName_shouldDoSomething_whenCondition
+```
+
+Example:
+```java
+@Test
+@DisplayName("getOriginalUrl should throw UrlNotFoundException when short code does not exist")
+void getOriginalUrl_shouldThrowUrlNotFoundException_whenNotFound() {
+    when(urlRepository.findByShortCode("notfound")).thenReturn(Optional.empty());
+
+    assertThrows(UrlNotFoundException.class, () -> useCase.getOriginalUrl("notfound"));
+
+    verify(urlRepository, never()).save(any());
+}
+```
+
+### Running Tests
+
+```bash
+mvn test
+```
+
+---
+
 ## 🔮 Future Improvements
 
 | Area | Improvement | Description |
 |------|-------------|-------------|
-| **Testing** | Unit & Integration Tests | Add JUnit 5 + Mockito for use cases, Spring Boot Test for controllers |
 | **Security** | Rate Limiting | Prevent abuse with request throttling per IP |
 | **Security** | API Key Authentication | Protect endpoints with API keys for registered users |
 ---
