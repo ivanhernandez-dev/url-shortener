@@ -5,13 +5,14 @@ import dev.ivanhernandez.urlshortener.application.dto.response.ShortUrlResponse;
 import dev.ivanhernandez.urlshortener.application.port.output.UrlRepository;
 import dev.ivanhernandez.urlshortener.domain.exception.InvalidUrlException;
 import dev.ivanhernandez.urlshortener.domain.model.Url;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.LocalDateTime;
 
@@ -20,22 +21,22 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
+@SpringBootTest
+@ActiveProfiles("test")
 @DisplayName("CreateShortUrlUseCaseImpl")
 class CreateShortUrlUseCaseImplTest {
 
-    @Mock
+    @MockitoBean
     private UrlRepository urlRepository;
 
+    @Autowired
     private CreateShortUrlUseCaseImpl useCase;
 
-    private static final String BASE_URL = "http://localhost:8081";
-    private static final int SHORT_CODE_LENGTH = 7;
+    @Value("${app.base-url}")
+    private String baseUrl;
 
-    @BeforeEach
-    void setUp() {
-        useCase = new CreateShortUrlUseCaseImpl(urlRepository, BASE_URL, SHORT_CODE_LENGTH);
-    }
+    @Value("${app.short-code.length}")
+    private int shortCodeLength;
 
     @Test
     @DisplayName("createShortUrl should create URL with generated code when no custom alias")
@@ -52,8 +53,8 @@ class CreateShortUrlUseCaseImplTest {
 
         assertNotNull(response);
         assertEquals("https://example.com", response.originalUrl());
-        assertEquals(SHORT_CODE_LENGTH, response.shortCode().length());
-        assertTrue(response.shortUrl().startsWith(BASE_URL + "/r/"));
+        assertEquals(shortCodeLength, response.shortCode().length());
+        assertTrue(response.shortUrl().startsWith(baseUrl + "/r/"));
         verify(urlRepository).save(any(Url.class));
     }
 
@@ -72,7 +73,7 @@ class CreateShortUrlUseCaseImplTest {
 
         assertNotNull(response);
         assertEquals("myalias", response.shortCode());
-        assertEquals(BASE_URL + "/r/myalias", response.shortUrl());
+        assertEquals(baseUrl + "/r/myalias", response.shortUrl());
     }
 
     @Test

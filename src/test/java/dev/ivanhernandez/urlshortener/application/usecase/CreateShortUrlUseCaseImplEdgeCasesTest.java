@@ -4,14 +4,15 @@ import dev.ivanhernandez.urlshortener.application.dto.request.CreateUrlRequest;
 import dev.ivanhernandez.urlshortener.application.dto.response.ShortUrlResponse;
 import dev.ivanhernandez.urlshortener.application.port.output.UrlRepository;
 import dev.ivanhernandez.urlshortener.domain.model.Url;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.LocalDateTime;
 
@@ -20,22 +21,19 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
+@SpringBootTest
+@ActiveProfiles("test")
 @DisplayName("CreateShortUrlUseCaseImpl - Edge Cases")
 class CreateShortUrlUseCaseImplEdgeCasesTest {
 
-    @Mock
+    @MockitoBean
     private UrlRepository urlRepository;
 
+    @Autowired
     private CreateShortUrlUseCaseImpl useCase;
 
-    private static final String BASE_URL = "http://localhost:8081";
-    private static final int SHORT_CODE_LENGTH = 7;
-
-    @BeforeEach
-    void setUp() {
-        useCase = new CreateShortUrlUseCaseImpl(urlRepository, BASE_URL, SHORT_CODE_LENGTH);
-    }
+    @Value("${app.short-code.length}")
+    private int shortCodeLength;
 
     @ParameterizedTest
     @DisplayName("should treat blank custom alias as null and generate code")
@@ -52,7 +50,7 @@ class CreateShortUrlUseCaseImplEdgeCasesTest {
         ShortUrlResponse response = useCase.createShortUrl(request);
 
         assertNotNull(response);
-        assertEquals(SHORT_CODE_LENGTH, response.shortCode().length());
+        assertEquals(shortCodeLength, response.shortCode().length());
     }
 
     @Test

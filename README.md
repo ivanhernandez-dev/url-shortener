@@ -1,6 +1,6 @@
 # URL Shortener
 
-A URL shortening service built with Java and Spring Boot, demonstrating clean architecture principles and modern development practices.
+A URL shortening service built with Java and Spring Boot, demonstrating clean architecture principles, comprehensive testing strategies, and modern development practices.
 
 ## 🌐 Live Demo
 
