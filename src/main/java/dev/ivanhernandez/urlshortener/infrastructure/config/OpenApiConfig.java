@@ -1,9 +1,11 @@
 package dev.ivanhernandez.urlshortener.infrastructure.config;
 
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -22,6 +24,12 @@ public class OpenApiConfig {
                                 .url("https://ivanhernandez.dev"))
                         .license(new License()
                                 .name("CC BY-NC 4.0")
-                                .url("https://creativecommons.org/licenses/by-nc/4.0/")));
+                                .url("https://creativecommons.org/licenses/by-nc/4.0/")))
+                .components(new Components()
+                        .addSecuritySchemes("bearerAuth", new SecurityScheme()
+                                .type(SecurityScheme.Type.HTTP)
+                                .scheme("bearer")
+                                .bearerFormat("JWT")
+                                .description("JWT token from Auth Service")));
     }
 }

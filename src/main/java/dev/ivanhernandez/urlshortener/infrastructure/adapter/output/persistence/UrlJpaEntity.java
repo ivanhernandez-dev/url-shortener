@@ -4,9 +4,12 @@ import dev.ivanhernandez.urlshortener.domain.model.Url;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
-@Table(name = "urls")
+@Table(name = "urls", indexes = {
+        @Index(name = "idx_user_id", columnList = "userId")
+})
 public class UrlJpaEntity {
 
     @Id
@@ -18,6 +21,12 @@ public class UrlJpaEntity {
 
     @Column(nullable = false, unique = true, length = 20)
     private String shortCode;
+
+    @Column
+    private UUID userId;
+
+    @Column
+    private UUID tenantId;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -54,6 +63,22 @@ public class UrlJpaEntity {
 
     public void setShortCode(String shortCode) {
         this.shortCode = shortCode;
+    }
+
+    public UUID getUserId() {
+        return userId;
+    }
+
+    public void setUserId(UUID userId) {
+        this.userId = userId;
+    }
+
+    public UUID getTenantId() {
+        return tenantId;
+    }
+
+    public void setTenantId(UUID tenantId) {
+        this.tenantId = tenantId;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -93,6 +118,8 @@ public class UrlJpaEntity {
         entity.setId(url.getId());
         entity.setOriginalUrl(url.getOriginalUrl());
         entity.setShortCode(url.getShortCode());
+        entity.setUserId(url.getUserId());
+        entity.setTenantId(url.getTenantId());
         entity.setCreatedAt(url.getCreatedAt());
         entity.setExpiresAt(url.getExpiresAt());
         entity.setAccessCount(url.getAccessCount());
@@ -105,6 +132,8 @@ public class UrlJpaEntity {
                 this.id,
                 this.originalUrl,
                 this.shortCode,
+                this.userId,
+                this.tenantId,
                 this.createdAt,
                 this.expiresAt,
                 this.accessCount,

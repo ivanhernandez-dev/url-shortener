@@ -28,14 +28,15 @@ curl -X POST https://url.ivanhernandez.dev/api/v1/urls \
 | **SOLID Principles** | Single responsibility per class, dependency inversion via interfaces, interface segregation with specific use cases |
 | **Domain-Driven Design** | Rich domain model with business logic encapsulation |
 | **Clean Code** | Readable, maintainable, and testable code structure |
+| **Token Introspection** | Integration with Auth Service for JWT validation without shared secrets |
 | **DTOs with Named Constructors** | `fromDomain()` and `toDomain()` methods for clean object mapping without external libraries |
-| **Custom Exceptions** | Domain-specific exceptions (`UrlNotFoundException`, `ExpiredUrlException`, `InvalidUrlException`) |
+| **Custom Exceptions** | Domain-specific exceptions (`UrlNotFoundException`, `ExpiredUrlException`, `UrlOwnershipException`) |
 | **Global Exception Handling** | Centralized `@RestControllerAdvice` for consistent error responses across the API |
 | **Input Validation** | Bean Validation with `@Valid`, `@NotBlank`, `@URL` annotations and custom error messages |
 | **RESTful API Design** | Proper HTTP methods, status codes, and resource naming |
-| **Spring Boot** | Spring Web, Spring Data JPA, Bean Validation |
+| **Spring Boot** | Spring Web, Spring Data JPA, Spring Security, Bean Validation |
 | **Database Flexibility** | H2 for development, PostgreSQL for production |
-| **API Documentation** | OpenAPI/Swagger integration |
+| **API Documentation** | OpenAPI/Swagger integration with JWT support |
 | **Containerization** | Docker & Docker Compose for deployment |
 | **Testing** | Unit, integration, and end-to-end tests with JUnit 5, Mockito, and Spring Boot Test |
 
@@ -53,6 +54,7 @@ graph TB
         end
         subgraph Output Adapters
             JPA[JPA Repositories]
+            AUTH[Auth Service Client]
         end
     end
     
@@ -71,6 +73,7 @@ graph TB
     IP --> UC
     UC --> OP
     OP --> JPA
+    OP --> AUTH
     UC --> DM
     UC --> EX
 ```
@@ -94,30 +97,39 @@ graph TB
 ```
 src/main/java/dev/ivanhernandez/urlshortener/
 │
-├── UrlShortenerApplication.java        # Spring Boot main class
+├── UrlShortenerApplication.java
 │
-├── domain/                             # Domain Layer
+├── domain/
 │   ├── model/
-│   │   └── Url.java                    # Domain model
+│   │   └── Url.java
 │   └── exception/
 │       ├── UrlNotFoundException.java
 │       ├── InvalidUrlException.java
-│       └── ExpiredUrlException.java
+│       ├── ExpiredUrlException.java
+│       └── UrlOwnershipException.java
 │
-├── application/                        # Application Layer
+├── application/
 │   ├── port/
-│   │   ├── input/                      # Use case interfaces
+│   │   ├── input/
 │   │   │   ├── CreateShortUrlUseCase.java
+│   │   │   ├── CreateUserUrlUseCase.java
 │   │   │   ├── GetOriginalUrlUseCase.java
 │   │   │   ├── GetUrlStatsUseCase.java
-│   │   │   └── DeleteUrlUseCase.java
+│   │   │   ├── GetUserUrlStatsUseCase.java
+│   │   │   ├── GetUserUrlsUseCase.java
+│   │   │   ├── DeleteUrlUseCase.java
+│   │   │   └── DeleteUserUrlUseCase.java
 │   │   └── output/
-│   │       └── UrlRepository.java      # Repository interface
-│   ├── usecase/                        # Use case implementations
+│   │       └── UrlRepository.java
+│   ├── usecase/
 │   │   ├── CreateShortUrlUseCaseImpl.java
+│   │   ├── CreateUserUrlUseCaseImpl.java
 │   │   ├── GetOriginalUrlUseCaseImpl.java
 │   │   ├── GetUrlStatsUseCaseImpl.java
-│   │   └── DeleteUrlUseCaseImpl.java
+│   │   ├── GetUserUrlStatsUseCaseImpl.java
+│   │   ├── GetUserUrlsUseCaseImpl.java
+│   │   ├── DeleteUrlUseCaseImpl.java
+│   │   └── DeleteUserUrlUseCaseImpl.java
 │   └── dto/
 │       ├── request/
 │       │   └── CreateUrlRequest.java
@@ -127,16 +139,24 @@ src/main/java/dev/ivanhernandez/urlshortener/
 │           ├── ErrorResponse.java
 │           └── ValidationErrorResponse.java
 │
-└── infrastructure/                     # Infrastructure Layer
+└── infrastructure/
     ├── adapter/
     │   ├── input/rest/
     │   │   ├── UrlController.java
+    │   │   ├── MyUrlsController.java
     │   │   └── RedirectController.java
-    │   └── output/persistence/
-    │       ├── JpaUrlRepository.java
-    │       ├── SpringDataUrlRepository.java
-    │       └── UrlJpaEntity.java
+    │   └── output/
+    │       ├── persistence/
+    │       │   ├── JpaUrlRepository.java
+    │       │   ├── SpringDataUrlRepository.java
+    │       │   └── UrlJpaEntity.java
+    │       └── auth/
+    │           ├── AuthServiceClient.java
+    │           └── IntrospectResponse.java
     ├── config/
+    │   ├── SecurityConfig.java
+    │   ├── JwtAuthenticationFilter.java
+    │   ├── AuthenticatedUser.java
     │   └── OpenApiConfig.java
     └── exception/
         └── GlobalExceptionHandler.java
@@ -144,264 +164,84 @@ src/main/java/dev/ivanhernandez/urlshortener/
 
 ---
 
-## 🔄 DTOs with Named Constructors
+## 🔐 Authentication Integration
 
-Instead of using external mapping libraries (MapStruct, ModelMapper), this project uses **named constructors** for clean, explicit object mapping:
+This service integrates with the [Auth Service](../authentication-service) for user authentication using **Token Introspection**. No shared secrets required.
 
-### Response DTO Example
+### How it Works
 
-```java
-public record ShortUrlResponse(
-        String shortUrl,
-        String shortCode,
-        String originalUrl,
-        LocalDateTime createdAt,
-        LocalDateTime expiresAt
-) {
-    public static ShortUrlResponse fromDomain(Url url, String baseUrl) {
-        return new ShortUrlResponse(
-                baseUrl + "/r/" + url.getShortCode(),
-                url.getShortCode(),
-                url.getOriginalUrl(),
-                url.getCreatedAt(),
-                url.getExpiresAt()
-        );
-    }
-}
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Auth as Auth Service :8082
+    participant URL as URL Shortener :8081
+
+    Client->>Auth: POST /auth/login
+    Auth-->>Client: JWT Token
+    Client->>URL: POST /my-urls (with JWT)
+    URL->>Auth: POST /auth/introspect
+    Auth-->>URL: {active: true, userId, ...}
+    URL-->>Client: URL created
 ```
 
-### JPA Entity Example
+### Anonymous vs Authenticated
 
-```java
-@Entity
-@Table(name = "urls")
-public class UrlJpaEntity {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String originalUrl;
-    private String shortCode;
-    // ... other fields
+| Feature | Anonymous | Authenticated |
+|---------|-----------|---------------|
+| Create URL | ✅ `/api/v1/urls` | ✅ `/api/v1/my-urls` |
+| Delete URL | ✅ (only anonymous URLs) | ✅ (only my URLs) |
+| Custom alias | ✅ | ✅ |
+| View statistics | ❌ | ✅ |
+| List my URLs | ❌ | ✅ |
 
-    public static UrlJpaEntity fromDomain(Url url) {
-        UrlJpaEntity entity = new UrlJpaEntity();
-        entity.setId(url.getId());
-        entity.setOriginalUrl(url.getOriginalUrl());
-        entity.setShortCode(url.getShortCode());
-        entity.setCreatedAt(url.getCreatedAt());
-        entity.setExpiresAt(url.getExpiresAt());
-        entity.setAccessCount(url.getAccessCount());
-        entity.setLastAccessedAt(url.getLastAccessedAt());
-        return entity;
-    }
+### Security Rules
 
-    public Url toDomain() {
-        return new Url(id, originalUrl, shortCode, createdAt, 
-                       expiresAt, accessCount, lastAccessedAt);
-    }
-}
-```
+| Action | Rule |
+|--------|------|
+| Delete anonymous URL | ✅ Allowed via public endpoint |
+| Delete URL with owner publicly | ❌ 403 Forbidden |
+| Delete another user's URL | ❌ 404 Not Found |
+| View stats of another user's URL | ❌ 404 Not Found |
 
-### Benefits
+### Using with Auth Service
 
-| Approach | Pros |
-|----------|------|
-| **Named Constructors** | Explicit, type-safe, no reflection, easy to debug, no external dependencies |
-| **External Mappers** | Less boilerplate, automatic mapping |
+```bash
+# 1. Get token from Auth Service
+curl -X POST http://localhost:8082/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"tenantSlug": "acme", "email": "user@example.com", "password": "SecurePass123!"}'
 
----
+# 2. Use token in URL Shortener
+curl -X POST http://localhost:8081/api/v1/my-urls \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"originalUrl": "https://github.com"}'
 
-## ⚠️ Custom Exceptions
-
-Domain-specific exceptions provide clear error semantics and enable proper HTTP status mapping:
-
-### Exception Hierarchy
-
-```java
-// Thrown when a short code doesn't exist
-public class UrlNotFoundException extends RuntimeException {
-    public UrlNotFoundException(String shortCode) {
-        super("URL not found with short code: " + shortCode);
-    }
-}
-
-// Thrown when accessing an expired URL
-public class ExpiredUrlException extends RuntimeException {
-    public ExpiredUrlException(String shortCode) {
-        super("URL has expired: " + shortCode);
-    }
-}
-
-// Thrown for invalid URL formats
-public class InvalidUrlException extends RuntimeException {
-    public InvalidUrlException(String message) {
-        super(message);
-    }
-}
-```
-
-### Usage in Use Cases
-
-```java
-@Component
-@Transactional
-public class GetOriginalUrlUseCaseImpl implements GetOriginalUrlUseCase {
-
-    private final UrlRepository urlRepository;
-
-    public GetOriginalUrlUseCaseImpl(UrlRepository urlRepository) {
-        this.urlRepository = urlRepository;
-    }
-
-    @Override
-    public String getOriginalUrl(String shortCode) {
-        Url url = urlRepository.findByShortCode(shortCode)
-                .orElseThrow(() -> new UrlNotFoundException(shortCode));
-
-        if (url.isExpired()) {
-            throw new ExpiredUrlException(shortCode);
-        }
-
-        url.incrementAccessCount();
-        urlRepository.save(url);
-
-        return url.getOriginalUrl();
-    }
-}
-```
-
----
-
-## 🛡️ Global Exception Handling
-
-A centralized `@RestControllerAdvice` catches all exceptions and returns consistent JSON error responses:
-
-### GlobalExceptionHandler
-
-```java
-@RestControllerAdvice
-public class GlobalExceptionHandler {
-
-    @ExceptionHandler(UrlNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleUrlNotFoundException(UrlNotFoundException ex) {
-        ErrorResponse error = new ErrorResponse(
-                HttpStatus.NOT_FOUND.value(),
-                ex.getMessage(),
-                LocalDateTime.now()
-        );
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
-    }
-
-    @ExceptionHandler(ExpiredUrlException.class)
-    public ResponseEntity<ErrorResponse> handleExpiredUrlException(ExpiredUrlException ex) {
-        ErrorResponse error = new ErrorResponse(
-                HttpStatus.GONE.value(),
-                ex.getMessage(),
-                LocalDateTime.now()
-        );
-        return ResponseEntity.status(HttpStatus.GONE).body(error);
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ValidationErrorResponse> handleValidationExceptions(
-            MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach(error -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
-        });
-        ValidationErrorResponse response = new ValidationErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                "Validation failed",
-                errors,
-                LocalDateTime.now()
-        );
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-    }
-}
-```
-
-### Error Response DTOs
-
-```java
-public record ErrorResponse(
-        int status,
-        String message,
-        LocalDateTime timestamp
-) {}
-
-public record ValidationErrorResponse(
-        int status,
-        String message,
-        Map<String, String> errors,
-        LocalDateTime timestamp
-) {}
-```
-
-### HTTP Status Mapping
-
-| Exception | HTTP Status | When |
-|-----------|-------------|------|
-| `UrlNotFoundException` | `404 Not Found` | Short code doesn't exist |
-| `ExpiredUrlException` | `410 Gone` | URL has expired |
-| `MethodArgumentNotValidException` | `400 Bad Request` | Validation failed |
-| `InvalidUrlException` | `400 Bad Request` | Malformed URL |
-
----
-
-## ✅ Input Validation
-
-Validation is implemented using Jakarta Bean Validation annotations with custom error messages:
-
-### Request DTO
-
-```java
-public record CreateUrlRequest(
-        @NotBlank(message = "Original URL is required")
-        @URL(message = "Invalid URL format")
-        String originalUrl,
-
-        String customAlias,
-
-        LocalDateTime expiresAt
-) {}
-```
-
-### Controller Integration
-
-```java
-@PostMapping
-public ResponseEntity<ShortUrlResponse> createShortUrl(
-        @Valid @RequestBody CreateUrlRequest request) {
-    ShortUrlResponse response = createShortUrlUseCase.createShortUrl(request);
-    return ResponseEntity.status(HttpStatus.CREATED).body(response);
-}
-```
-
-### Validation Error Response
-
-```json
-{
-  "status": 400,
-  "message": "Validation failed",
-  "errors": {
-    "originalUrl": "Invalid URL format"
-  },
-  "timestamp": "2026-01-11T10:30:00"
-}
+# 3. View statistics
+curl http://localhost:8081/api/v1/my-urls/<shortCode>/stats \
+  -H "Authorization: Bearer <access_token>"
 ```
 
 ---
 
 ## 📡 API Endpoints
 
+### Public Endpoints
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/v1/urls` | Create a short URL |
+| `POST` | `/api/v1/urls` | Create a short URL (anonymous) |
+| `DELETE` | `/api/v1/urls/{shortCode}` | Delete an anonymous URL |
 | `GET` | `/r/{shortCode}` | Redirect to original URL |
-| `GET` | `/api/v1/urls/{shortCode}/stats` | Get URL statistics |
-| `DELETE` | `/api/v1/urls/{shortCode}` | Delete a short URL |
+
+### Protected Endpoints (require JWT)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v1/my-urls` | List my URLs |
+| `POST` | `/api/v1/my-urls` | Create URL linked to my account |
+| `DELETE` | `/api/v1/my-urls/{shortCode}` | Delete my URL |
+| `GET` | `/api/v1/my-urls/{shortCode}/stats` | Get URL statistics |
 
 ### Example: Create Short URL
 
@@ -427,11 +267,12 @@ curl -X POST https://url.ivanhernandez.dev/api/v1/urls \
 }
 ```
 
-### Example: Get Statistics
+### Example: Get Statistics (Authenticated)
 
 **Request:**
 ```bash
-curl https://url.ivanhernandez.dev/api/v1/urls/spring/stats
+curl https://url.ivanhernandez.dev/api/v1/my-urls/spring/stats \
+  -H "Authorization: Bearer <access_token>"
 ```
 
 **Response:**
@@ -447,51 +288,16 @@ curl https://url.ivanhernandez.dev/api/v1/urls/spring/stats
 
 ---
 
-## 🔄 Data Flow
+## ⚠️ Custom Exceptions
 
-### Create Short URL
+Domain-specific exceptions provide clear error semantics and enable proper HTTP status mapping:
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Controller
-    participant UseCase
-    participant Repository
-    participant Database
-
-    Client->>Controller: POST /api/v1/urls
-    Controller->>UseCase: createShortUrl(request)
-    UseCase->>UseCase: Validate & Generate Code
-    UseCase->>Repository: save(url)
-    Repository->>Database: INSERT INTO urls
-    Database-->>Repository: Saved Entity
-    Repository-->>UseCase: Domain Model
-    UseCase-->>Controller: ShortUrlResponse
-    Controller-->>Client: 201 Created
-```
-
-### Redirect
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Controller
-    participant UseCase
-    participant Repository
-    participant Database
-
-    Client->>Controller: GET /r/{shortCode}
-    Controller->>UseCase: getOriginalUrl(shortCode)
-    UseCase->>Repository: findByShortCode(shortCode)
-    Repository->>Database: SELECT * FROM urls
-    Database-->>Repository: Entity
-    Repository-->>UseCase: Domain Model
-    UseCase->>UseCase: Check Expiration
-    UseCase->>Repository: incrementAccessCount()
-    Repository->>Database: UPDATE urls
-    UseCase-->>Controller: originalUrl
-    Controller-->>Client: 302 Redirect
-```
+| Exception | HTTP Status | When |
+|-----------|-------------|------|
+| `UrlNotFoundException` | `404 Not Found` | Short code doesn't exist |
+| `ExpiredUrlException` | `410 Gone` | URL has expired |
+| `InvalidUrlException` | `400 Bad Request` | Malformed URL or alias exists |
+| `UrlOwnershipException` | `403 Forbidden` | Trying to delete a URL that belongs to a user via public endpoint |
 
 ---
 
@@ -501,6 +307,7 @@ sequenceDiagram
 |----------|------------|
 | Language | Java 25 |
 | Framework | Spring Boot 3.5 |
+| Security | Spring Security + Token Introspection |
 | Persistence | Spring Data JPA |
 | Database (Dev) | H2 |
 | Database (Prod) | PostgreSQL |
@@ -534,6 +341,15 @@ This will:
 - Automatically create the database schema
 - Start the application on port 8081
 
+### Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `AUTH_SERVICE_URL` | URL of the Auth Service (default: http://localhost:8082) | Yes (prod) |
+| `APP_BASE_URL` | Base URL for generated short links | No |
+| `DB_HOST`, `DB_PORT`, `DB_NAME` | PostgreSQL connection | Yes (prod) |
+| `DB_USERNAME`, `DB_PASSWORD` | PostgreSQL credentials | Yes (prod) |
+
 ### Local URLs
 
 | Resource | URL |
@@ -550,6 +366,8 @@ CREATE TABLE urls (
     id               BIGSERIAL PRIMARY KEY,
     original_url     VARCHAR(2048) NOT NULL,
     short_code       VARCHAR(20) NOT NULL UNIQUE,
+    user_id          UUID,
+    tenant_id        UUID,
     created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at       TIMESTAMP,
     access_count     BIGINT NOT NULL DEFAULT 0,
@@ -558,6 +376,7 @@ CREATE TABLE urls (
 
 CREATE INDEX idx_short_code ON urls(short_code);
 CREATE INDEX idx_expires_at ON urls(expires_at);
+CREATE INDEX idx_user_id ON urls(user_id);
 ```
 
 ---
@@ -573,21 +392,22 @@ src/test/java/dev/ivanhernandez/urlshortener/
 │
 ├── domain/
 │   ├── model/
-│   │   ├── UrlTest.java                      # Unit tests
-│   │   └── UrlParameterizedTest.java         # Parameterized tests
+│   │   ├── UrlTest.java
+│   │   └── UrlParameterizedTest.java
 │   └── exception/
-│       └── DomainExceptionsTest.java         # Exception tests
+│       └── DomainExceptionsTest.java
 │
 ├── application/
 │   ├── usecase/
 │   │   ├── CreateShortUrlUseCaseImplTest.java
-│   │   ├── CreateShortUrlUseCaseImplEdgeCasesTest.java  # Edge cases
+│   │   ├── CreateShortUrlUseCaseImplEdgeCasesTest.java
 │   │   ├── GetOriginalUrlUseCaseImplTest.java
 │   │   ├── GetUrlStatsUseCaseImplTest.java
+│   │   ├── GetUserUrlStatsUseCaseImplTest.java
 │   │   └── DeleteUrlUseCaseImplTest.java
 │   └── dto/
 │       ├── request/
-│       │   └── CreateUrlRequestValidationTest.java  # Validation tests
+│       │   └── CreateUrlRequestValidationTest.java
 │       └── response/
 │           ├── ShortUrlResponseTest.java
 │           └── UrlStatsResponseTest.java
@@ -595,48 +415,16 @@ src/test/java/dev/ivanhernandez/urlshortener/
 ├── infrastructure/
 │   ├── adapter/input/rest/
 │   │   ├── UrlControllerTest.java
-│   │   ├── UrlControllerValidationTest.java  # Validation tests
+│   │   ├── UrlControllerValidationTest.java
 │   │   └── RedirectControllerTest.java
 │   ├── adapter/output/persistence/
 │   │   ├── UrlJpaEntityTest.java
 │   │   ├── JpaUrlRepositoryTest.java
-│   │   └── SpringDataUrlRepositoryTest.java  # @DataJpaTest
+│   │   └── SpringDataUrlRepositoryTest.java
 │   └── exception/
 │       └── GlobalExceptionHandlerTest.java
 │
-└── UrlShortenerIntegrationTest.java          # @SpringBootTest
-```
-
-### Test Categories
-
-| Category | Description | Tools |
-|----------|-------------|-------|
-| **Unit Tests** | Isolated tests with mocked dependencies | JUnit 5, Mockito |
-| **Parameterized Tests** | Data-driven tests with multiple inputs | @ParameterizedTest, @ValueSource, @CsvSource |
-| **Validation Tests** | Bean Validation constraint testing | Jakarta Validation, Validator |
-| **Edge Case Tests** | Boundary conditions and special scenarios | JUnit 5 |
-| **Exception Tests** | Domain exception behavior verification | JUnit 5 |
-| **Controller Tests** | REST endpoint testing with MockMvc | Spring MockMvc |
-| **Repository Tests** | Database integration tests | @DataJpaTest, H2 |
-| **Integration Tests** | Full application context tests | @SpringBootTest |
-
-### Test Naming Convention
-
-```
-methodName_shouldDoSomething_whenCondition
-```
-
-Example:
-```java
-@Test
-@DisplayName("getOriginalUrl should throw UrlNotFoundException when short code does not exist")
-void getOriginalUrl_shouldThrowUrlNotFoundException_whenNotFound() {
-    when(urlRepository.findByShortCode("notfound")).thenReturn(Optional.empty());
-
-    assertThrows(UrlNotFoundException.class, () -> useCase.getOriginalUrl("notfound"));
-
-    verify(urlRepository, never()).save(any());
-}
+└── UrlShortenerIntegrationTest.java
 ```
 
 ### Running Tests
@@ -645,14 +433,6 @@ void getOriginalUrl_shouldThrowUrlNotFoundException_whenNotFound() {
 mvn test
 ```
 
----
-
-## 🔮 Future Improvements
-
-| Area | Improvement | Description |
-|------|-------------|-------------|
-| **Security** | Rate Limiting | Prevent abuse with request throttling per IP |
-| **Security** | API Key Authentication | Protect endpoints with API keys for registered users |
 ---
 
 ## 📝 License

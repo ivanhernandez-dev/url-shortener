@@ -1,12 +1,15 @@
 package dev.ivanhernandez.urlshortener.domain.model;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public class Url {
 
     private Long id;
     private String originalUrl;
     private String shortCode;
+    private UUID userId;
+    private UUID tenantId;
     private LocalDateTime createdAt;
     private LocalDateTime expiresAt;
     private Long accessCount;
@@ -15,11 +18,14 @@ public class Url {
     public Url() {
     }
 
-    public Url(Long id, String originalUrl, String shortCode, LocalDateTime createdAt,
-               LocalDateTime expiresAt, Long accessCount, LocalDateTime lastAccessedAt) {
+    public Url(Long id, String originalUrl, String shortCode, UUID userId, UUID tenantId,
+               LocalDateTime createdAt, LocalDateTime expiresAt, Long accessCount,
+               LocalDateTime lastAccessedAt) {
         this.id = id;
         this.originalUrl = originalUrl;
         this.shortCode = shortCode;
+        this.userId = userId;
+        this.tenantId = tenantId;
         this.createdAt = createdAt;
         this.expiresAt = expiresAt;
         this.accessCount = accessCount;
@@ -57,6 +63,30 @@ public class Url {
 
     public void setShortCode(String shortCode) {
         this.shortCode = shortCode;
+    }
+
+    public UUID getUserId() {
+        return userId;
+    }
+
+    public void setUserId(UUID userId) {
+        this.userId = userId;
+    }
+
+    public UUID getTenantId() {
+        return tenantId;
+    }
+
+    public void setTenantId(UUID tenantId) {
+        this.tenantId = tenantId;
+    }
+
+    public boolean isOwnedBy(UUID userId) {
+        return this.userId != null && this.userId.equals(userId);
+    }
+
+    public boolean isAnonymous() {
+        return this.userId == null;
     }
 
     public LocalDateTime getCreatedAt() {

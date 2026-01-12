@@ -4,7 +4,9 @@ import dev.ivanhernandez.urlshortener.application.port.output.UrlRepository;
 import dev.ivanhernandez.urlshortener.domain.model.Url;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public class JpaUrlRepository implements UrlRepository {
@@ -36,5 +38,18 @@ public class JpaUrlRepository implements UrlRepository {
     @Override
     public void deleteByShortCode(String shortCode) {
         springDataUrlRepository.deleteByShortCode(shortCode);
+    }
+
+    @Override
+    public List<Url> findByUserId(UUID userId) {
+        return springDataUrlRepository.findByUserId(userId).stream()
+                .map(UrlJpaEntity::toDomain)
+                .toList();
+    }
+
+    @Override
+    public Optional<Url> findByShortCodeAndUserId(String shortCode, UUID userId) {
+        return springDataUrlRepository.findByShortCodeAndUserId(shortCode, userId)
+                .map(UrlJpaEntity::toDomain);
     }
 }

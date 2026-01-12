@@ -1,32 +1,30 @@
 package dev.ivanhernandez.urlshortener.application.usecase;
 
-import dev.ivanhernandez.urlshortener.application.port.input.DeleteUrlUseCase;
+import dev.ivanhernandez.urlshortener.application.dto.response.UrlStatsResponse;
+import dev.ivanhernandez.urlshortener.application.port.input.GetUserUrlStatsUseCase;
 import dev.ivanhernandez.urlshortener.application.port.output.UrlRepository;
 import dev.ivanhernandez.urlshortener.domain.exception.UrlNotFoundException;
-import dev.ivanhernandez.urlshortener.domain.exception.UrlOwnershipException;
 import dev.ivanhernandez.urlshortener.domain.model.Url;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @Component
-@Transactional
-public class DeleteUrlUseCaseImpl implements DeleteUrlUseCase {
+@Transactional(readOnly = true)
+public class GetUserUrlStatsUseCaseImpl implements GetUserUrlStatsUseCase {
 
     private final UrlRepository urlRepository;
 
-    public DeleteUrlUseCaseImpl(UrlRepository urlRepository) {
+    public GetUserUrlStatsUseCaseImpl(UrlRepository urlRepository) {
         this.urlRepository = urlRepository;
     }
 
     @Override
-    public void deleteUrl(String shortCode) {
-        Url url = urlRepository.findByShortCode(shortCode)
+    public UrlStatsResponse getUserUrlStats(String shortCode, UUID userId) {
+        Url url = urlRepository.findByShortCodeAndUserId(shortCode, userId)
                 .orElseThrow(() -> new UrlNotFoundException(shortCode));
 
-        if (!url.isAnonymous()) {
-            throw new UrlOwnershipException(shortCode);
-        }
-
-        urlRepository.deleteByShortCode(shortCode);
+        return UrlStatsResponse.fromDomain(url);
     }
 }

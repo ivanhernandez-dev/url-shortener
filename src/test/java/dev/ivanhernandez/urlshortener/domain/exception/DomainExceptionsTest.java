@@ -44,10 +44,23 @@ class DomainExceptionsTest {
     }
 
     @Test
+    @DisplayName("UrlOwnershipException should contain short code in message")
+    void urlOwnershipException_shouldContainShortCodeInMessage() {
+        String shortCode = "owned123";
+
+        UrlOwnershipException exception = new UrlOwnershipException(shortCode);
+
+        assertNotNull(exception.getMessage());
+        assertTrue(exception.getMessage().contains(shortCode));
+        assertInstanceOf(RuntimeException.class, exception);
+    }
+
+    @Test
     @DisplayName("all domain exceptions should be unchecked exceptions")
     void allDomainExceptions_shouldBeUncheckedExceptions() {
         assertInstanceOf(RuntimeException.class, new UrlNotFoundException("test"));
         assertInstanceOf(RuntimeException.class, new ExpiredUrlException("test"));
         assertInstanceOf(RuntimeException.class, new InvalidUrlException("test"));
+        assertInstanceOf(RuntimeException.class, new UrlOwnershipException("test"));
     }
 }

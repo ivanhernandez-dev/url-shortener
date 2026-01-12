@@ -5,6 +5,7 @@ import dev.ivanhernandez.urlshortener.application.dto.response.ValidationErrorRe
 import dev.ivanhernandez.urlshortener.domain.exception.ExpiredUrlException;
 import dev.ivanhernandez.urlshortener.domain.exception.InvalidUrlException;
 import dev.ivanhernandez.urlshortener.domain.exception.UrlNotFoundException;
+import dev.ivanhernandez.urlshortener.domain.exception.UrlOwnershipException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -47,6 +48,16 @@ public class GlobalExceptionHandler {
                 LocalDateTime.now()
         );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(UrlOwnershipException.class)
+    public ResponseEntity<ErrorResponse> handleUrlOwnershipException(UrlOwnershipException ex) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.FORBIDDEN.value(),
+                ex.getMessage(),
+                LocalDateTime.now()
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
