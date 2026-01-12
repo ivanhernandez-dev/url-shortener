@@ -30,6 +30,8 @@ class UrlJpaEntityTest {
         when(mockUrl.getId()).thenReturn(1L);
         when(mockUrl.getOriginalUrl()).thenReturn("https://example.com");
         when(mockUrl.getShortCode()).thenReturn("abc123");
+        when(mockUrl.getUserId()).thenReturn(null);
+        when(mockUrl.getTenantId()).thenReturn(null);
         when(mockUrl.getCreatedAt()).thenReturn(createdAt);
         when(mockUrl.getExpiresAt()).thenReturn(expiresAt);
         when(mockUrl.getAccessCount()).thenReturn(42L);
@@ -40,6 +42,8 @@ class UrlJpaEntityTest {
         assertEquals(1L, entity.getId());
         assertEquals("https://example.com", entity.getOriginalUrl());
         assertEquals("abc123", entity.getShortCode());
+        assertNull(entity.getUserId());
+        assertNull(entity.getTenantId());
         assertEquals(createdAt, entity.getCreatedAt());
         assertEquals(expiresAt, entity.getExpiresAt());
         assertEquals(42L, entity.getAccessCount());
@@ -52,6 +56,8 @@ class UrlJpaEntityTest {
         when(mockUrl.getId()).thenReturn(null);
         when(mockUrl.getOriginalUrl()).thenReturn("https://example.com");
         when(mockUrl.getShortCode()).thenReturn("abc123");
+        when(mockUrl.getUserId()).thenReturn(null);
+        when(mockUrl.getTenantId()).thenReturn(null);
         when(mockUrl.getCreatedAt()).thenReturn(LocalDateTime.now());
         when(mockUrl.getExpiresAt()).thenReturn(null);
         when(mockUrl.getAccessCount()).thenReturn(0L);
@@ -60,6 +66,8 @@ class UrlJpaEntityTest {
         UrlJpaEntity entity = UrlJpaEntity.fromDomain(mockUrl);
 
         assertNull(entity.getId());
+        assertNull(entity.getUserId());
+        assertNull(entity.getTenantId());
         assertNull(entity.getExpiresAt());
         assertNull(entity.getLastAccessedAt());
     }
@@ -119,6 +127,8 @@ class UrlJpaEntityTest {
         when(mockUrl.getId()).thenReturn(1L);
         when(mockUrl.getOriginalUrl()).thenReturn("https://example.com");
         when(mockUrl.getShortCode()).thenReturn("abc123");
+        when(mockUrl.getUserId()).thenReturn(null);
+        when(mockUrl.getTenantId()).thenReturn(null);
         when(mockUrl.getCreatedAt()).thenReturn(createdAt);
         when(mockUrl.getExpiresAt()).thenReturn(expiresAt);
         when(mockUrl.getAccessCount()).thenReturn(42L);
@@ -130,6 +140,8 @@ class UrlJpaEntityTest {
         assertEquals(1L, restored.getId());
         assertEquals("https://example.com", restored.getOriginalUrl());
         assertEquals("abc123", restored.getShortCode());
+        assertNull(restored.getUserId());
+        assertNull(restored.getTenantId());
         assertEquals(createdAt, restored.getCreatedAt());
         assertEquals(expiresAt, restored.getExpiresAt());
         assertEquals(42L, restored.getAccessCount());

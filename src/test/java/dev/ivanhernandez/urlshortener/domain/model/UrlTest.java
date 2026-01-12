@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -90,11 +91,13 @@ class UrlTest {
         LocalDateTime expiresAt = LocalDateTime.now().plusDays(30);
         LocalDateTime lastAccessedAt = LocalDateTime.now();
 
-        Url url = new Url(1L, "https://example.com", "abc123", createdAt, expiresAt, 5L, lastAccessedAt);
+        Url url = new Url(1L, "https://example.com", "abc123", null, null, createdAt, expiresAt, 5L, lastAccessedAt);
 
         assertEquals(1L, url.getId());
         assertEquals("https://example.com", url.getOriginalUrl());
         assertEquals("abc123", url.getShortCode());
+        assertNull(url.getUserId());
+        assertNull(url.getTenantId());
         assertEquals(createdAt, url.getCreatedAt());
         assertEquals(expiresAt, url.getExpiresAt());
         assertEquals(5L, url.getAccessCount());
@@ -109,5 +112,51 @@ class UrlTest {
         assertNull(url.getId());
         assertNull(url.getOriginalUrl());
         assertNull(url.getShortCode());
+    }
+
+    @Test
+    @DisplayName("isAnonymous should return true when userId is null")
+    void isAnonymous_shouldReturnTrue_whenUserIdIsNull() {
+        Url url = new Url();
+        url.setUserId(null);
+
+        assertTrue(url.isAnonymous());
+    }
+
+    @Test
+    @DisplayName("isAnonymous should return false when userId is set")
+    void isAnonymous_shouldReturnFalse_whenUserIdIsSet() {
+        Url url = new Url();
+        url.setUserId(UUID.randomUUID());
+
+        assertFalse(url.isAnonymous());
+    }
+
+    @Test
+    @DisplayName("isOwnedBy should return true when userId matches")
+    void isOwnedBy_shouldReturnTrue_whenUserIdMatches() {
+        UUID userId = UUID.randomUUID();
+        Url url = new Url();
+        url.setUserId(userId);
+
+        assertTrue(url.isOwnedBy(userId));
+    }
+
+    @Test
+    @DisplayName("isOwnedBy should return false when userId does not match")
+    void isOwnedBy_shouldReturnFalse_whenUserIdDoesNotMatch() {
+        Url url = new Url();
+        url.setUserId(UUID.randomUUID());
+
+        assertFalse(url.isOwnedBy(UUID.randomUUID()));
+    }
+
+    @Test
+    @DisplayName("isOwnedBy should return false when userId is null")
+    void isOwnedBy_shouldReturnFalse_whenUserIdIsNull() {
+        Url url = new Url();
+        url.setUserId(null);
+
+        assertFalse(url.isOwnedBy(UUID.randomUUID()));
     }
 }

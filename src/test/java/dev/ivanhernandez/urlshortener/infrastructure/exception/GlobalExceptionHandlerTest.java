@@ -5,6 +5,7 @@ import dev.ivanhernandez.urlshortener.application.dto.response.ValidationErrorRe
 import dev.ivanhernandez.urlshortener.domain.exception.ExpiredUrlException;
 import dev.ivanhernandez.urlshortener.domain.exception.InvalidUrlException;
 import dev.ivanhernandez.urlshortener.domain.exception.UrlNotFoundException;
+import dev.ivanhernandez.urlshortener.domain.exception.UrlOwnershipException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -114,5 +115,19 @@ class GlobalExceptionHandlerTest {
 
         assertEquals(1, response.getBody().errors().size());
         assertEquals("Original URL is required", response.getBody().errors().get("originalUrl"));
+    }
+
+    @Test
+    @DisplayName("handleUrlOwnershipException should return 403 with error message")
+    void handleUrlOwnershipException_shouldReturn403WithMessage() {
+        UrlOwnershipException exception = new UrlOwnershipException("owned123");
+
+        ResponseEntity<ErrorResponse> response = handler.handleUrlOwnershipException(exception);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(403, response.getBody().status());
+        assertTrue(response.getBody().message().contains("owned123"));
+        assertNotNull(response.getBody().timestamp());
     }
 }

@@ -30,6 +30,7 @@ services:
       DB_USERNAME: urlshortener
       DB_PASSWORD: urlshortener
       APP_BASE_URL: https://url.ivanhernandez.dev
+      AUTH_SERVICE_URL: http://host.docker.internal:8082
     ports:
       - "8081:8081"
     depends_on:

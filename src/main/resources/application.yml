@@ -11,3 +11,6 @@ app:
   base-url: ${APP_BASE_URL:http://localhost:8081}
   short-code:
     length: 7
+
+auth-service:
+  base-url: ${AUTH_SERVICE_URL:http://localhost:8082}
